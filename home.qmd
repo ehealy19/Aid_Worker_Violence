@@ -1,0 +1,719 @@
+---
+title: "Understanding the Why: Modeling Motive in Incidents of Violence Against Aid Workers"
+format: 
+  closeread-html:
+    embed-resources: true
+---
+
+<style>
+  body {
+    background-color: #1C1C1E;
+    color: white;
+    font-family: 'Didot', serif;
+  }
+</style>
+
+<br>
+<br>
+
+Despite their neutrality and inherent nobel intentions, aid workers are often subjected to **horrible and unprecedented violence** when performing live-saving work. They are constantly putting themselves in harm's way to ensure the safety of others, providing humanitarian relief to those most in need. However, these efforts are often thwarted by targeted attacks that exploit their vulnerability. The question raised is why, why do these horrific acts happen to these innocent aid workers. Understanding this question is crucial to improving their safety and security so that they are able to provide the relief efforts that so many rely on. 
+
+To delve into this question, we will work with the Aid Worker Security Database (AWSD). This comprehensive database relies on aid worker accounts and after the fact investigations to compile attacks on humanitarian workers across the world. AWSD is an on-going research project providing information on attacks dating back to 1997 with information ranging from the attack location, to the perpertrator, to the number of people impacted. Importantly for this research, it includes the reason behind the attack or the motive. These are broken into six distinct categories.
+
+* Political
+* Economic
+* Incidental
+* Disputed
+* Other
+* Unknown
+
+We will exploit these motive categories to perform analysis on the attacks, focusing on how the motive fits into the bigger picture and whether understanding the motive can create informed strategies to improve the safety and security of aid workers. 
+
+The angle of this research is whether the motive of the attacks shifts the outcome or the group of people impacted? To answer this, we will investigate multiple subquestions:
+
+
+1. How are the motives changing over time?
+2. Are certain motives more common in certain areas?
+3. Is the type of motive linked to the outcome?
+   1. Types of attacks?
+   2. Certain motives more deadly?
+4. Are certain groups more at risk based on the motive?
+   1. National vs international?
+   2. Type of Agency?
+
+
+We now dig into each of these subquestion to better understand what is driving these attacks.
+
+<br>
+
+[**Breaking Down the Motive**]{.smallcaps}
+
+<br>
+
+
+:::::::::::::: cr-section
+@cr-pitch1
+
+::: {#cr-pitch1 style="color: rgb(0, 0, 0); font-family: 'Didot', serif;"}
+Let's begin with a simple histogram to understand how the attacks are dispersed across each type of Motive.
+
+:::
+::::::::::::::
+
+:::::::::::::: cr-section
+@cr-pitch2
+
+::: {}
+What we see is that, unfortunately, a fair amount of the Motives are Unknown. This issue can be looked at as a data collection issue or a comment on the human aspect of this dataset - that we do not always know why people commit horrible acts of crime. 
+
+<br>
+
+Whichever the reason may be, let's keep this in mind as we move through the data and note that from this point on Unknown, Other, and Disputed motivations will be excluded from the analysis. While this is important data, no conclusions can be drawn from motives in this case, thus, we focus on those that are known: political, economic, and incidental.
+:::
+
+::: {#cr-pitch2}
+```{r warning=F, echo=F, message=F}
+# loading necessary libraries
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(viridis)
+library(hrbrthemes)
+library(gganimate)
+library(plotly)
+library(forcats)
+
+# reading in my custom theme
+source("assets/my_theme.R")
+
+# reading in the events dataset
+events <- read.csv("data/security_incidents.csv")
+
+# excluding 2025 (not a complete year of data)
+events <- events %>%
+  filter(Year != 2025)
+```
+
+```{r}
+# HISTOGRAM OF NUMBER OF EVENTS BY MOTIVE
+
+ggplot(events %>% filter(!is.na(Motive) & Motive != ""), aes(x = Motive)) + # ignore NA/empty
+  geom_bar(fill = "#0D0887", color = "#0D0887") + # custom color
+  theme_minimal() +
+  labs(
+    title = "Number of Incidents by Motive Type",
+    x = "Motive",
+    y = "Count"
+  ) + my_theme
+```
+
+:::
+::::::::::::::
+
+
+:::::::::::::: cr-section
+@cr-pitch3
+
+::: {#cr-pitch3 style="color: rgb(0, 0, 0)"}
+Now let's look at the trend of these attacks over time.
+
+:::
+::::::::::::::
+
+:::::::::::::: cr-section
+@cr-pitch4
+
+::: {}
+What we see is that the three remain closely intertwined throughout the years. Political maintains a small lead overtime, followed closely by economic and incidental.
+
+<br>
+
+In addition, there is a general upward trend (with much noise) until around 2020. There is a small peak in 2013, followed by a small trough in 2015. 
+
+<br>
+From 2020 on, economic and political experience a downward trend, while incidental spikes strongly upward. 
+:::
+
+::: {#cr-pitch4}
+
+```{r warning=F, echo=F, message=F}
+# ANIMATED TIME SERIES OF MOTIVES OVER TIME
+
+# EXCLUDING 'OTHER' AND 'DISPUTED' FROM HERE ON:
+events <- events %>%
+  filter(!Motive %in% c("Other", "Disputed", "Unknown"))
+
+# group by the year and the motive type
+events_summary <- events %>%
+    filter(!is.na(Motive) & Motive != "") %>%
+    group_by(Year, Motive) %>%
+    summarise(n = n(), .groups = 'drop') # count by year
+
+# creating a time series plot with each line being a motive type
+time <- ggplot(events_summary, aes(x = Year, y = n, group = Motive, color = Motive)) +
+    geom_line() +
+    geom_point() +
+    scale_color_manual(values = c( # custom colors
+        "Political" = "#F0F921",
+        "Economic" = "#F89441",
+        "Incidental" = "#933b94",
+        "Unknown" = "#0D0887"
+    )) +
+    ggtitle("Incidence Count by Motive Type over the Years") +
+    my_theme + 
+    ylab("") +
+    transition_reveal(Year) # making it an animation
+
+# animating the plot
+animate(time) 
+```
+
+:::
+::::::::::::::
+
+:::::::::::::: cr-section
+@cr-pitch5
+
+::: {#cr-pitch5 style="color: rgb(0, 0, 0)"}
+While it’s fun to watch the animation play, let’s take a closer look at the three main motives in a static sense and zoom in on the recent years. 
+
+:::
+::::::::::::::
+
+
+
+::: {.cr-section}
+We can see both a peak prior to and a drop post the time of Covid-19. Political is also interestingly consistently more prevalent than economic, however, this changes around the same time that the two motives begin their descent right around 2020. We see both economic and political peak at this point, and economic significantly overtakes political around the 2021 point, essentially for the first time in nearly 20 years. On the flip side, incidental sees a skyrocketing from 2021 to 2024. [@cr-pitch6]{pan-to="-40%" scale-by="1.5"}
+
+::: {#cr-pitch6}
+![](data/time_series.png)
+:::
+::::::::::::::
+
+
+:::::::::::::: cr-section
+@cr-pitch7
+
+::: {#cr-pitch7 style="color: rgb(0, 0, 0)"}
+With the beginnings of a trend through time, let's pivot to geographic motive trends. 
+
+:::
+::::::::::::::
+
+
+
+:::::::::::::: cr-section
+@cr-pitch8
+
+::: {}
+Focusing on the three main motives, we glimpse political motives independently to start. The emerging trend is the majority of attacks occurring in Africa, the Middle East, and the Pacific Islands. We see only two countries involved in the West. Notably, there is an extreme outlier with over 200 politically charged events, which is seen in Afghanistan.
+
+:::
+
+::: {#cr-pitch8}
+```{r warning=F, echo=F, message=F}
+# CHOROPLETH OF POLITICAL MOTIVATED BY COUNTRY
+
+# subsetting by just the political motive and by country
+political_events <- events %>%
+  filter(Motive == "Political") %>%
+  group_by(Country) %>%
+  summarise(count = n())
+
+# choropleth of political events across the country
+plot_geo(political_events) %>% # making it interactive
+  add_trace(
+    locations = ~Country,
+    locationmode = 'country names',
+    z = ~count,
+    colorscale = list( # custom color scale
+      c(0, "#0D0887"), 
+      c(0.33, "#933b94"),
+      c(0.66, "#F89441"),
+      c(1, "#F0F921")
+    ),
+    text = ~paste(Country, "<br>Count:", count),
+    hoverinfo = "text"
+  ) %>%
+  colorbar(title = list(text = "Count", font = list(family = "Didot"))) %>%
+  layout(
+    title = list(
+      text = "Count of Politically Motivated Incidents by Country",
+      font = list(family = "Didot")
+    ),
+    font = list(family = "Didot"),
+    geo = list(showframe = FALSE)
+  )
+```
+:::
+::::::::::::::
+
+:::::::::::::: cr-section
+@cr-pitch9
+
+::: {}
+Moving along to incidental attacks, the trend is again similarly dispersed throughout Africa, the Middle East, and the Pacific Islands. However, we now see Mexico as well as three other countries on the Western side of the map. Afghanistan has a large proportion of the attacks with 107, however, South Sudan leads with 138 indicental attacks. In addition, Sudan, Somalia, and Syrian Arab Republic are each following closely behind.
+
+:::
+
+::: {#cr-pitch9}
+```{r warning=F, echo=F, message=F}
+# CHOROPLETH OF INCIDENTAL MOTIVATED BY COUNTRY
+
+# subsetting by just the incidental motive and by country
+inc_events <- events %>%
+  filter(Motive == "Incidental") %>%
+  group_by(Country) %>%
+  summarise(count = n())
+
+# choropleth of incidental events across the country
+plot_geo(inc_events) %>% # making it interactive
+  add_trace(
+    locations = ~Country,
+    locationmode = 'country names',
+    z = ~count,
+    colorscale = list( # custom color scale
+      c(0, "#0D0887"), 
+      c(0.33, "#933b94"),
+      c(0.66, "#F89441"),
+      c(1, "#F0F921")
+    ),
+    text = ~paste(Country, "<br>Count:", count),
+    hoverinfo = "text"
+  ) %>%
+  colorbar(title = list(text = "Count", font = list(family = "Didot"))) %>%
+  layout(
+    title = list(
+      text = "Count of Incidentally Motivated Incidents by Country",
+      font = list(family = "Didot")
+    ),
+    font = list(family = "Didot"),
+    geo = list(showframe = FALSE)
+  )
+```
+:::
+::::::::::::::
+
+
+
+:::::::::::::: cr-section
+@cr-pitch10
+
+::: {}
+Moving along to economic motives, the plot sees some interesting changes. There is still the general trend of many countries in Africa being represented as well as some smattering across Asia and the Pacific Islands. However, we now see some additional countries being represented in the West, notably Mexico, Argentina, Chile, and Ecuador. Most importantly, Afghanistan has relatively few economic attacks and it is now South Sudan leading with 131 attacks. This is followed by Sudan and the Democractic Republic of Congo who each have about 50 attacks.
+:::
+
+
+::: {#cr-pitch10}
+```{r warning=F, echo=F, message=F}
+# CHOROPLETH OF ECONOMIC MOTIVATED BY COUNTRY
+
+# subsetting by just the economic motive and by country
+economic_events <- events %>%
+  filter(Motive == "Economic") %>%
+  group_by(Country) %>%
+  summarise(count = n())
+
+# choropleth of economic events across the country
+plot_geo(economic_events) %>% # making it interactive
+  add_trace(
+    locations = ~Country,
+    locationmode = 'country names',
+    z = ~count,
+    colorscale = list( # custom color scale
+      c(0, "#0D0887"), 
+      c(0.33, "#933b94"),
+      c(0.66, "#F89441"),
+      c(1, "#F0F921")
+    ),
+    text = ~paste(Country, "<br>Count:", count),
+    hoverinfo = "text"
+  ) %>%
+  colorbar(title = list(text = "Count", font = list(family = "Didot"))) %>%
+  layout(
+    title = list(
+      text = "Count of Economically Motivated Incidents by Country",
+      font = list(family = "Didot")
+    ),
+    font = list(family = "Didot"),
+    geo = list(showframe = FALSE)
+  )
+```
+
+:::
+::::::::::::::
+
+
+
+
+:::::::::::::: cr-section
+@cr-pitch11
+
+::: {#cr-pitch11 style="color: rgb(0, 0, 0)"}
+We now look at the outcomes these motives typically lead to. We are seeking to understand if certain motives might trigger extreme violence both in numbers and severity.
+
+:::
+::::::::::::::
+
+
+:::::::::::::: cr-section
+@cr-pitch12
+
+::: {}
+Political seems to be the highest cause of all types of injuries in this context, which is followed by incidental, and then economic.  
+
+<br>
+
+Notably, in political-charged events there seems to be an even spread of killings, kidnappings, and woundings. 
+
+<br>
+
+Incidental is dominated by killings and some wounding, with almost no kidnappings. 
+
+<br>
+
+Economic events are also mainly seeing woundings, however, there are some kidnappings, but minimal killings.
+
+:::
+
+::: {#cr-pitch12}
+```{r warning=F, echo=F, message=F}
+# STACKED BAR PLOT OF TOTAL INJURY TYPE BY MOTIVE
+
+# DROPPING THE 'UNKNOWN' FOR THE REST
+events <- events %>%
+  filter(!Motive %in% c("Unknown"))
+
+# aggregating the harm types by the motive type
+harm_summary <- events %>%
+  filter(!is.na(Motive) & Motive != "" & !Motive %in% c("Disputed", "Other")) %>%
+  group_by(Motive) %>%
+  summarise(Total_Killed = sum(`Total.killed`, na.rm = TRUE),
+            Total_Wounded = sum(`Total.wounded`, na.rm = TRUE),
+            Total_Kidnapped = sum(`Total.kidnapped`, na.rm = TRUE)) %>%
+  pivot_longer(cols = starts_with("Total"), names_to = "Metric", values_to = "Count") # reshaping to long format
+
+# ordering motive types by total count (highest count = first)
+harm_summary <- harm_summary %>%
+  mutate(Motive_Type = fct_reorder(Motive, -Count))
+
+# stacked bar plot
+p <- ggplot(harm_summary, aes(x = Motive_Type, y = Count, fill = Metric)) +
+  geom_bar(stat = "identity") +
+  coord_flip() + # making it horizontal
+  scale_fill_manual(values = c( # custom colors
+        "Total_Killed" = "#F89441",
+        "Total_Wounded" = "#933b94",
+        "Total_Kidnapped" = "#0D0887"
+    )) +
+  labs(title = "Total Wounded, Kidnapped, and Affected by Motive Type",
+       x = "Motive", y = NULL, fill = "Metric") +
+  my_theme
+
+ggplotly(p) # making it interactive
+```
+
+:::
+::::::::::::::
+
+:::::::::::::: cr-section
+@cr-pitch13
+
+::: {#cr-pitch13 style="color: rgb(0, 0, 0)"}
+Moving along with the outcomes of the charged attacks, we can take it a step further and breakdown exactly which agencies are being impacted by the events and to what degree they are being injured.
+
+:::
+::::::::::::::
+
+
+:::::::::::::: cr-section
+@cr-pitch14
+
+::: {}
+Here we see some emerging trends across the agencies. 
+
+<br>
+
+There is quite an obvious trends for political motives being the main driver in events involving ICRC, NNGO, and the UN. 
+
+<br>
+
+In addition, the UN and INGO make up the majority of the economic-related attacks. 
+
+<br>
+The NRCS and IFRC are disproportionally involved in incidentally motivated attacks.
+:::
+
+::: {#cr-pitch14}
+```{r warning=F, echo=F, message=F}
+# PIE CHARTS OF MOTIVES BY AGENCIES
+
+# sums events by the agency and the motive
+agency_props <- events %>%
+  filter(!is.na(Motive) & Motive != "") %>% # drop NA/missing
+  pivot_longer(cols = c("UN", "INGO", "ICRC", "NRCS.and.IFRC", "NNGO", "Other"),
+               names_to = "Agency", values_to = "IncidentCount") %>% # long format
+  filter(!is.na(IncidentCount) & IncidentCount > 0) %>%  # Only include non-zero incidents
+  group_by(Agency, Motive) %>%
+  summarise(Count = sum(IncidentCount, na.rm = TRUE), .groups = "drop") %>%
+  group_by(Agency) %>%
+  mutate(Percent = Count / sum(Count)) %>% # calculate percent share
+  ungroup()
+
+# creating pie charts for motives across agencies
+ggplot(agency_props, aes(x = 1, y = Percent, fill = Motive)) +
+  geom_col(width = 0.6, color = "white") +
+  coord_polar(theta = "y") +
+  facet_wrap(~ Agency) + # facet by the agency type
+  scale_fill_manual(values = c( # custom colors
+        "Political" = "#F0F921",
+        "Economic" = "#F89441",
+        "Incidental" = "#933b94"
+  )) +
+  theme_void(base_family = "Didot", base_size = 14) + 
+  theme( # manually appplying theme due to pie chart issues
+    axis.text = element_blank(),
+    axis.ticks = element_blank(),
+    axis.title = element_blank(),
+    panel.grid = element_blank(),
+    panel.background = element_blank(),
+    strip.text = element_text(family = "Didot", size = 14),
+    strip.background = element_blank(),
+    plot.title = element_text(family = "Didot", size = 16, face = "bold"),
+    legend.title = element_text(family = "Didot"),
+    legend.text = element_text(family = "Didot", size = 12)
+  ) + 
+  labs(title = "Distribution of Incidence Motive Type per Agency",
+       fill = "Motive")
+```
+:::
+::::::::::::::
+
+
+:::::::::::::: cr-section
+@cr-pitch15
+
+::: {#cr-pitch15 style="color: rgb(0, 0, 0)"}
+We can also investigate whether these agency employees were nationals or internationals and how this may impact their involvement in attacks of different motivations.
+
+:::
+::::::::::::::
+
+:::::::::::::: cr-section
+@cr-pitch16
+
+::: {}
+The immediate trend is that nationals are much more likely to be involved in an attack across the board. We then see that Nationals are most likely to be linked to politically charged attacks, followed by Incidental and then by Economic.
+
+<br>
+
+Internationals see a slightly different involvement trend, with political still leading, but followed by economic, and then followed by incidental.
+:::
+
+::: {#cr-pitch16}
+```{r warning=F, echo=F, message=F}
+# GROUPED BAR CHART OF MOTIVES BY NATIONALS/INTERNATIONAL
+
+# sums the number of events by national/international
+nationality_long <- events %>%
+  filter(!is.na(Motive) & Motive != "") %>% # ignore missing
+  pivot_longer(cols = c(Total.nationals, Total.internationals),
+               names_to = "Group", values_to = "Count") %>% # pivot long
+  mutate(
+    Group = ifelse(Group == "Total.nationals", "Nationals", "Internationals")
+  )
+
+# aggregate totals by motive and group
+nationality_summary <- nationality_long %>%
+  group_by(Motive, Group) %>%
+  summarise(Total = sum(Count, na.rm = TRUE), .groups = "drop")
+
+# plotting grouped bar chart
+g <- ggplot(nationality_summary, aes(x = reorder(Motive, -Total), y = Total, fill = Group)) +
+  geom_bar(stat = "identity", position = "dodge") +  # dodged bars
+  scale_fill_manual(values = c(
+        "Internationals" = "#933b94", # custom colors
+        "Nationals" = "#0D0887"
+    )) +
+  labs(title = "Total Nationals and International Impacted by Motive Type",
+       subtitle = "Nationals vs Internationals (Grouped Bars)",
+       x = "", y = "Total", fill = "Group") +
+  my_theme +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+ggplotly(g) # making it interactive
+```
+:::
+::::::::::::::
+
+:::::::::::::: cr-section
+@cr-pitch17
+
+
+::: {#cr-pitch17 style="color: rgb(0, 0, 0)"}
+Let's take this one step further and investigate which type of injury nationals versus internationals tend to sustain based on the motive type.
+
+:::
+::::::::::::::
+
+:::::::::::::: cr-section
+@cr-pitch18
+
+::: {}
+Firstly, on the national side, we see that the most common combination of attack outcomes is nationals being killed in a political event, however, the number for kidnappings, woundings, and killings are only marginally different for nationals in political events. 
+
+<br>
+
+When nationals are involved in incidental events, they overwhelmingly result in killings, followed by woundings, and almost no kidnappings. For nationals in economic scenarios this switches to woundings, kidnappings, and then killings. 
+
+<br>
+
+On the international side, again we see much less involvement overall. The one slight trend is internationals involved in politically charged events leads to a higher number of kidnappings than woundings and killings. In addition, when it comes to economic events, woundings are the leading outcome. 
+
+:::
+
+::: {#cr-pitch18}
+```{r warning=F, echo=F, message=F}
+# HEATMAP OF TOTAL WOUND TYPES FOR NATIONALS/INTERNATIONALS BY MOTIVE
+
+# aggregating wounding type by motive type and splitting btwn nats/internationals
+harm_long <- events %>%
+  filter(!is.na(Motive) & Motive != "") %>% # ignore missing
+  pivot_longer( # pivoting all to long format
+    cols = c(
+      Nationals.killed, Nationals.wounded, Nationals.kidnapped,
+      Internationals.killed, Internationals.wounded, Internationals.kidnapped
+    ), # renames
+    names_to = c("Group", "HarmType"),
+    names_sep = "\\.",
+    values_to = "Count"
+  ) %>%
+  mutate(
+    Group = ifelse(Group == "Nationals", "Nationals", "Internationals"),
+    HarmType = stringr::str_to_title(HarmType)
+  )
+
+# aggregating for the heatmap
+heatmap_data <- harm_long %>% # sums # of harmed for each motive, group, harm type
+  group_by(Group, Motive, HarmType) %>%
+  summarise(Total = sum(Count, na.rm = TRUE), .groups = "drop")
+
+# creating the heatmap
+g <- ggplot(heatmap_data, aes(x = HarmType, y = Motive, fill = Total)) +
+  geom_tile(color = "white") +
+  facet_wrap(~ Group) + # facet by national/international
+  scale_fill_viridis_c(option = "plasma") +
+  labs(
+    title = "Type of Harm by Motive for Nationals and Internationals",
+    subtitle = "Separated by Group (Nationals vs Internationals)",
+    x = NULL, y = NULL, fill = "Total"
+  ) +
+  my_theme + # adding my theme
+  theme(
+    axis.text.x = element_text(angle = 30, hjust = 1),
+    strip.text = element_text(size = 12, face = "bold"),
+    strip.background = element_blank(),
+  ) 
+
+ggplotly(g) # making it interactive
+```
+
+:::
+::::::::::::::
+
+
+
+:::::::::::::: cr-section
+@cr-pitch19
+
+
+::: {#cr-pitch19 style="color: #1C1C1E}
+So what does all this mean for aid workers, for aid agencies, and for the general public invested in the safety of their countries?
+
+:::
+::::::::::::::
+
+<br>
+
+[**Insights:**]{.smallcaps} We have tried to pinpoint global trends in the motives behind the aid worker attacks. We will now look back to our initial guiding questions to summarize the main findings.
+
+1. How are the motives changing over time?
+   * General upward trend of attacks (ignoring 2020)
+   * Incidental skyrocketing from 2021 to 2024
+
+2. Are certain motives more common in certain areas?
+   * Attacks are centralized in Africa, the Middle East, and the Pacific Islands
+   * Political attacks most common in Afghanistan
+   * Incidental attacks most common in South Sudan and Afghanistan
+   * Economic attacks most common in South Sudan
+
+3. Is the type of motive linked to the outcome?
+   * Political attacks lead to most injuries overall
+   * Incidental attacks lead mostly to killings
+   * Economic attacks lead mostly to woundings
+
+4. Are certain groups more at risk based on the motive? (Type of Agency)
+   * Political attacks impact ICRC, NNGO, and the UN
+   * Economic attacks impact NNGO and the UN
+   * Incidental attacks impact NRCS & IFRC
+
+5. Are certain groups more at risk based on the motive? (National vs international)
+   * Nationals are involved in all types of attacks more than internationals
+   * Both nationals and internationals mainly injured in political motivated attacks
+   * Most killings of nationals result from political or incidental attacks
+   * Most woundings of nationals result from economic attacks
+   * Most kidnappings of internationals result from political attacks
+
+<br> 
+
+[**Recommendations**]{.smallcaps}
+
+With a better understanding of the landscape of attacks, particularly the motivation behind them, we were able to see how the outcomes of the attacks may shift as well as the types of people impacted. The emerging trends allow us to develop some actionable insights that could improve the safety and security of aid workers. 
+
+Of course, it is important to note that these attacks are quite sensitive and that we are looking only at the attacks that happened, not those that were attempted or were simply not recorded. In addition, stopping these types of attacks is much more involved than simply making small changes to security as they occur due to deeply engrained societal issues. While the priority is, without a doubt, keeping aid workers safe and allowing them to provide humanitarian relief to people in need, there are never any guarantees, especially in the charged and complicated situations they are entering. 
+
+That being said, certain trends offer insights that could inform changes, however small, that may enhance aid worker safety or help reduce the number of attacks. The main recommendation is to identify regions as different motivation hot zones based on the political, economic, and overall climate of the area. Knowing this beforehand can allow for proper preparation and keep aid agencies vigilant of the shifting threat of attack. With designated hot zones, they can shift their attention, resources, and training in the most effective manner. 
+
+It seems pertinent to focus much of the safety measures and resources in the regions of the Middle East and Africa, maybe even homing in on Sudan and Afghanistan. Again, it is important to note that there is a complex political climate within these countries making it difficult to impact the root of the problem. However, having more protection and allocating monitoring and preventative resources in these regions may improve the overall safety and preparedness of aid workers.
+
+We have found that politics are overwhelming the main cause of these attacks. To combat this fact, aid worker organizations should be vigilant about understanding the political climate of countries they may be working in and identifying hot-spots regions. In addition, governments are well aware of politically charged regions of the world and should be prioritizing diplomatic and humanitarian engagement in these regions in an effort to stabilize the political climate, which could, in effect, decrease the number of attacks on aid workers. 
+
+In terms of the breakdown of which attack outcomes are most prevalent with specific motives, this could help with the type of response being allocated. For example, first-aid logistics should be tailored to the specific type of region (i.e. a country with a tense economic climate). Having first aid and emergency response teams at the ready in all politically charged hot zones could get aid workers to safety much faster. Protective security in incidental zones may decrease the number of killings. 
+
+The training received by the different aid organizations and nationals versus internationals could be tailored based on what attack they are most likely to encounter. Protective training should be provided for nationals in political hot zones, while medical preparedness for woundings and minor injuries should be taught for nationals entering economic zones. Kidnapping training and protocol should be implemented for international staff in political hotspots. 
+
+Unfortunately, each and everyday aid workers will continue to put themselves in imminent danger. The hope is that analyzing the data on these horrific attacks can provide some additional support to the aid workers and begin prioritizing the important work they are doing.
+
+<br>
+<br>
+<br>
+
+<hr>
+
+<br>
+<br>
+<br>
+<br>
+
+[**References**]{.smallcaps}
+
+1. “Aid Worker Security Database: Aid Worker Security Database.” Aid Worker Security Database | Aid Worker Security Database, www.aidworkersecurity.org/. Accessed 24 Mar. 2025. 
+2. “Aid Worker Security Database (AWSD) Codebook.” Aid Worker Security Database (AWSD) Codebook | Humanitarian Outcomes, 1 Feb. 2025, humanitarianoutcomes.org/AWSD-codebook. 
+3. Plot Libraries Reference Galleries:
+   1. https://plotly.com/ggplot2/
+   2. https://r-graph-gallery.com/
+   3. https://gganimate.com/
+   4. https://www.rdocumentation.org/packages/plotly/versions/4.10.4/topics/plot_geo
+4. AI Usage (ChatGPT):
+   1. Help with fixing some closeread formatting issues
+   2. Creating the first choropleth, specifically using plot_geo
+   3. Summing the events by agency and motive for the pie charts
+   4. Fixing the theme issues for the pie charts
+   5. Pivoting Long for bar charts, pie charts, and heatmaps
+   6. Aggregating for the heatmap
+   7. Overall R errors and debugging help throughout
+
+
+<br>
+
+[Data Preprocessing & Plotting Code](https://ehealy.georgetown.domains/Scholarship/preprocess.html)

@@ -1,0 +1,412 @@
+---
+title: "Preprocessing the Data Visualization Code"
+format:
+    html:
+        embed-resources: true
+---
+
+## Loading in the Data
+```{r}
+# all libraries
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(viridis)
+library(hrbrthemes)
+library(gganimate)
+library(plotly)
+library(forcats)
+
+# reading in the events dataset
+events <- read.csv("../data/security_incidents.csv")
+# ignoring the year 2025
+events <- events %>%
+  filter(Year != 2025)
+
+# loading in my theme
+source("../assets/my_theme.R")
+```
+
+## Checking For Potential Issues
+```{r}
+head(events)
+summary(events)
+
+cat("----------------------\n")
+cat("COLUMNS:\n")
+cat("----------------------\n")
+print(colnames(events))
+print(names(events))
+
+cat("----------------------\n")
+cat("GENERAL INFORMATION:\n")
+cat("----------------------\n")
+str(events)
+
+cat("----------------------\n")
+cat("BASIC STATISTICS:\n")
+cat("----------------------\n")
+summary(events)
+
+# rows and columns
+Nr0 <- nrow(events)
+Nc0 <- ncol(events)
+cat("Nrows = ", Nr0, "\nNcol = ", Nc0, "\nMatrix entries = ", Nr0 * Nc0, "\n")
+```
+
+## Understanding the Motive Variable
+```{r}
+colnames(events)
+unique(events$Motive)
+table(events$Motive)
+nrow(events)
+# Unknown, Other, Disputed, Political, Incidental, Economic
+```
+
+## Creating the Visualizations
+
+### Histogram of Number of Events by Motive
+```{r}
+ggplot(events %>% filter(!is.na(Motive) & Motive != ""), aes(x = Motive)) + # ignore NA/empty
+  geom_bar(fill = "#0D0887", color = "#0D0887") + # custom color
+  theme_minimal() +
+  labs(
+    title = "Number of Incidents by Motive Type",
+    x = "Motive",
+    y = "Count"
+  ) + my_theme
+```
+
+### Animated Time Series
+```{r}
+# dropping 'OTHER' AND 'DISPUTED':
+events <- events %>%
+  filter(!Motive %in% c("Other", "Disputed", "Unknown"))
+
+# group by the year and the motive type
+events_summary <- events %>%
+    filter(!is.na(Motive) & Motive != "") %>%
+    group_by(Year, Motive) %>%
+    summarise(n = n(), .groups = 'drop')
+
+# creating a time series plot with each line being a motive type
+time <- ggplot(events_summary, aes(x = Year, y = n, group = Motive, color = Motive)) +
+    geom_line() +
+    geom_point() +
+    scale_color_viridis(discrete = TRUE) +
+    ggtitle("Motives of Incidences over the Years") +
+    theme_ipsum() +
+    ylab("Number of Motive Types") +
+    transition_reveal(Year)
+
+# animating and saving
+animate(time)
+anim_save("motives_animation.gif", animation = animate(time))
+```
+
+### Static Time Series
+```{r}
+# aggregating by motive type
+events_summary <- events %>%
+    filter(!is.na(Motive) & Motive != "") %>%
+    group_by(Year, Motive) %>%
+    summarise(n = n(), .groups = 'drop')
+
+# taking only three motives
+filtered_summary <- events_summary %>%
+  filter(Motive %in% c("Economic", "Political", "Incidental"))
+
+# Static time series plot
+ggplot(filtered_summary, aes(x = Year, y = n, color = Motive)) +
+  geom_line() +
+  geom_point() +
+  scale_color_manual(values = c(
+        "Political" = "#F0F921",
+        "Economic" = "#F89441",
+        "Incidental" = "#933b94"
+  )) +
+  ggtitle("") +
+  ylab("") +
+  xlab("") +
+  my_theme +
+  theme(legend.position = "none")
+```
+
+### Political Choropleth
+```{r}
+# subsetting by just the political motive and by country
+political_events <- events %>%
+  filter(Motive == "Political") %>%
+  group_by(Country) %>%
+  summarise(count = n())
+
+# choropleth of political events across the country
+plot_geo(political_events) %>% # making it interactive
+  add_trace(
+    locations = ~Country,
+    locationmode = 'country names',
+    z = ~count,
+    colorscale = list( # custom color scale
+      c(0, "#0D0887"), 
+      c(0.33, "#933b94"),
+      c(0.66, "#F89441"),
+      c(1, "#F0F921")
+    ),
+    text = ~paste(Country, "<br>Count:", count),
+    hoverinfo = "text"
+  ) %>%
+  colorbar(title = list(text = "Count", font = list(family = "Didot"))) %>%
+  layout(
+    title = list(
+      text = "Count of Politically Motivated Incidents by Country",
+      font = list(family = "Didot")
+    ),
+    font = list(family = "Didot"),
+    geo = list(showframe = FALSE)
+  )
+```
+
+### Economic Choropleth
+```{r}
+# subsetting by just the economic motive and by country
+economic_events <- events %>%
+  filter(Motive == "Economic") %>%
+  group_by(Country) %>%
+  summarise(count = n())
+
+# choropleth of economic events across the country
+plot_geo(economic_events) %>% # making it interactive
+  add_trace(
+    locations = ~Country,
+    locationmode = 'country names',
+    z = ~count,
+    colorscale = list( # custom color scale
+      c(0, "#0D0887"), 
+      c(0.33, "#933b94"),
+      c(0.66, "#F89441"),
+      c(1, "#F0F921")
+    ),
+    text = ~paste(Country, "<br>Count:", count),
+    hoverinfo = "text"
+  ) %>%
+  colorbar(title = list(text = "Count", font = list(family = "Didot"))) %>%
+  layout(
+    title = list(
+      text = "Count of Economically Motivated Incidents by Country",
+      font = list(family = "Didot")
+    ),
+    font = list(family = "Didot"),
+    geo = list(showframe = FALSE)
+  )
+```
+
+### Incidental Choropleth
+```{r}
+# subsetting by just the incidental motive and by country
+inc_events <- events %>%
+  filter(Motive == "Incidental") %>%
+  group_by(Country) %>%
+  summarise(count = n())
+
+# choropleth of incidental events across the country
+plot_geo(inc_events) %>% # making it interactive
+  add_trace(
+    locations = ~Country,
+    locationmode = 'country names',
+    z = ~count,
+    colorscale = list( # custom color scale
+      c(0, "#0D0887"), 
+      c(0.33, "#933b94"),
+      c(0.66, "#F89441"),
+      c(1, "#F0F921")
+    ),
+    text = ~paste(Country, "<br>Count:", count),
+    hoverinfo = "text"
+  ) %>%
+  colorbar(title = list(text = "Count", font = list(family = "Didot"))) %>%
+  layout(
+    title = list(
+      text = "Count of Incidentally Motivated Incidents by Country",
+      font = list(family = "Didot")
+    ),
+    font = list(family = "Didot"),
+    geo = list(showframe = FALSE)
+  )
+```
+
+### Dropping 'Unknown'
+```{r}
+# DROPPING THE 'UNKNOWN' FOR THE REST
+events <- events %>%
+  filter(!Motive %in% c("Unknown"))
+```
+
+### Stacked Bar Plot
+```{r}
+# aggregating the harm types by the motive type
+harm_summary <- events %>%
+  filter(!is.na(Motive) & Motive != "" & !Motive %in% c("Disputed", "Other")) %>%
+  group_by(Motive) %>%
+  summarise(Total_Killed = sum(`Total.killed`, na.rm = TRUE),
+            Total_Wounded = sum(`Total.wounded`, na.rm = TRUE),
+            Total_Kidnapped = sum(`Total.kidnapped`, na.rm = TRUE)) %>%
+  pivot_longer(cols = starts_with("Total"), names_to = "Metric", values_to = "Count") # reshaping to long format
+
+# ordering motive types by total count (highest count = first)
+harm_summary <- harm_summary %>%
+  mutate(Motive_Type = fct_reorder(Motive, -Count))
+
+# stacked bar plot
+p <- ggplot(harm_summary, aes(x = Motive_Type, y = Count, fill = Metric)) +
+  geom_bar(stat = "identity") +
+  coord_flip() + # making it horizontal
+  scale_fill_manual(values = c( # custom colors
+        "Total_Killed" = "#F89441",
+        "Total_Wounded" = "#933b94",
+        "Total_Kidnapped" = "#0D0887"
+    )) +
+  labs(title = "Total Wounded, Kidnapped, and Affected by Motive Type",
+       x = "Motive", y = NULL, fill = "Metric") +
+  my_theme
+
+ggplotly(p) # making it interactive
+```
+
+## Pie Chart by Agency
+```{r}
+# sums events by the agency and the motive
+agency_props <- events %>%
+  filter(!is.na(Motive) & Motive != "") %>% # drop NA/missing
+  pivot_longer(cols = c("UN", "INGO", "ICRC", "NRCS.and.IFRC", "NNGO", "Other"),
+               names_to = "Agency", values_to = "IncidentCount") %>% # long format
+  filter(!is.na(IncidentCount) & IncidentCount > 0) %>%  # Only include non-zero incidents
+  group_by(Agency, Motive) %>%
+  summarise(Count = sum(IncidentCount, na.rm = TRUE), .groups = "drop") %>%
+  group_by(Agency) %>%
+  mutate(Percent = Count / sum(Count)) %>% # calculate percent share
+  ungroup()
+
+# creating pie charts for motives across agencies
+ggplot(agency_props, aes(x = 1, y = Percent, fill = Motive)) +
+  geom_col(width = 0.6, color = "white") +
+  coord_polar(theta = "y") +
+  facet_wrap(~ Agency) + # facet by the agency type
+  scale_fill_manual(values = c( # custom colors
+        "Political" = "#F0F921",
+        "Economic" = "#F89441",
+        "Incidental" = "#933b94"
+  )) +
+  theme_void(base_family = "Didot", base_size = 14) + 
+  theme( # manually appplying theme due to pie chart issues
+    axis.text = element_blank(),
+    axis.ticks = element_blank(),
+    axis.title = element_blank(),
+    panel.grid = element_blank(),
+    panel.background = element_blank(),
+    strip.text = element_text(family = "Didot", size = 14),
+    strip.background = element_blank(),
+    plot.title = element_text(family = "Didot", size = 16, face = "bold"),
+    legend.title = element_text(family = "Didot"),
+    legend.text = element_text(family = "Didot", size = 12)
+  ) + 
+  labs(title = "Distribution of Incidence Motive Type per Agency",
+       fill = "Motive")
+```
+
+### Reverse Pie Chart
+```{r}
+# Pivot agency columns long
+agency_props <- events %>%
+  filter(!is.na(Motive) & Motive != "") %>%
+  pivot_longer(cols = c("UN", "INGO", "ICRC", "NRCS.and.IFRC", "NNGO", "Other"),
+               names_to = "Agency", values_to = "IncidentCount") %>%
+  filter(!is.na(IncidentCount) & IncidentCount > 0) %>%  # Only include non-zero incidents
+  group_by(Agency, Motive) %>%
+  summarise(Count = sum(IncidentCount, na.rm = TRUE), .groups = "drop") %>%
+  group_by(Agency) %>%
+  mutate(Percent = Count / sum(Count)) %>%
+  ungroup()
+
+ggplot(agency_props, aes(x = 1, y = Percent, fill = Motive)) +
+  geom_col(width = 0.6, color = "white") +
+  coord_polar(theta = "y") +
+  facet_wrap(~ Agency) +
+  scale_fill_viridis_d(option = "plasma") +
+  theme_void() +
+  labs(title = "Distribution of Motives per Agency",
+       fill = "Motive")
+```
+
+### Grouped Bar Chart (Nats versus Inters)
+```{r}
+# sums the number of events by national/international
+nationality_long <- events %>%
+  filter(!is.na(Motive) & Motive != "") %>% # ignore missing
+  pivot_longer(cols = c(Total.nationals, Total.internationals),
+               names_to = "Group", values_to = "Count") %>% # pivot long
+  mutate(Group = ifelse(Group == "Total.nationals", "Nationals", "Internationals"))
+
+# aggregate totals by motive and group
+nationality_summary <- nationality_long %>%
+  group_by(Motive, Group) %>%
+  summarise(Total = sum(Count, na.rm = TRUE), .groups = "drop")
+
+# plotting grouped bar chart
+g <- ggplot(nationality_summary, aes(x = reorder(Motive, -Total), y = Total, fill = Group)) +
+  geom_bar(stat = "identity", position = "dodge") +  # dodged bars
+  scale_fill_manual(values = c(
+        "Internationals" = "#933b94", # custom colors
+        "Nationals" = "#0D0887"
+    )) +
+  labs(title = "Total Nationals and International Impacted by Motive Type",
+       subtitle = "Nationals vs Internationals (Grouped Bars)",
+       x = "", y = "Total", fill = "Group") +
+  my_theme +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+ggplotly(g) # making it interactive
+```
+
+### Heatmap
+```{r}
+# aggregating wounding type by motive type and splitting btwn nats/internationals
+harm_long <- events %>%
+  filter(!is.na(Motive) & Motive != "") %>% # ignore missing
+  pivot_longer( # pivoting all to long format
+    cols = c(
+      Nationals.killed, Nationals.wounded, Nationals.kidnapped,
+      Internationals.killed, Internationals.wounded, Internationals.kidnapped
+    ), # renames
+    names_to = c("Group", "HarmType"),
+    names_sep = "\\.",
+    values_to = "Count"
+  ) %>%
+  mutate(
+    Group = ifelse(Group == "Nationals", "Nationals", "Internationals"),
+    HarmType = stringr::str_to_title(HarmType)
+  )
+
+# aggregating for the heatmap
+heatmap_data <- harm_long %>% # sums # of harmed for each motive, group, harm type
+  group_by(Group, Motive, HarmType) %>%
+  summarise(Total = sum(Count, na.rm = TRUE), .groups = "drop")
+
+# creating the heatmap
+g <- ggplot(heatmap_data, aes(x = HarmType, y = Motive, fill = Total)) +
+  geom_tile(color = "white") +
+  facet_wrap(~ Group) + # facet by national/international
+  scale_fill_viridis_c(option = "plasma") +
+  labs(
+    title = "Type of Harm by Motive for Nationals and Internationals",
+    subtitle = "Separated by Group (Nationals vs Internationals)",
+    x = NULL, y = NULL, fill = "Total"
+  ) +
+  my_theme + # adding my theme
+  theme(
+    axis.text.x = element_text(angle = 30, hjust = 1),
+    strip.text = element_text(size = 12, face = "bold"),
+    strip.background = element_blank(),
+  ) 
+
+ggplotly(g) # making it interactive
+```
